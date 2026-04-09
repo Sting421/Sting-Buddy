@@ -1,0 +1,158 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  emoji     String   @default("🐝")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  spaces   Space[]
+  projects Project[]
+  tasks    Task[]
+  tags     Tag[]
+  reviews  DailyReview[]
+
+  @@map("workspaces")
+}
+
+model Space {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  name        String
+  emoji       String   @default("")
+  color       String?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projects  Project[]
+
+  @@map("spaces")
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  spaceId     String   @map("space_id")
+  workspaceId String   @map("workspace_id")
+  name        String
+  emoji       String   @default("")
+  color       String   @default("#22c55e")
+  description String?
+  targetDate  DateTime? @map("target_date")
+  status      String   @default("active")
+  order       Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  space     Space     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@map("projects")
+}
+
+model Task {
+  id               String    @id @default(uuid())
+  workspaceId      String    @map("workspace_id")
+  projectId        String?   @map("project_id")
+  parentId         String?   @map("parent_id")
+  title            String
+  description      String?
+  status           String    @default("inbox")
+  priority         String    @default("none")
+  dueDate          DateTime? @map("due_date")
+  scheduledDate    DateTime? @map("scheduled_date")
+  estimatedMinutes Int?      @map("estimated_minutes")
+  actualMinutes    Int?      @map("actual_minutes")
+  energyLevel      String?   @map("energy_level")
+  tags             String[]  @default([])
+  contexts         String[]  @default([])
+  order            Int       @default(0)
+  todayOrder       Int?      @map("today_order")
+  isInToday        Boolean   @default(false) @map("is_in_today")
+  recurrenceRule   String?   @map("recurrence_rule")
+  calendarEventId  String?   @map("calendar_event_id")
+  completedAt      DateTime? @map("completed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  parent    Task?     @relation("SubTasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks  Task[]    @relation("SubTasks")
+
+  timeEntries TimeEntry[]
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, isInToday])
+  @@index([projectId])
+  @@index([parentId])
+  @@map("tasks")
+}
+
+model Tag {
+  id          String @id @default(uuid())
+  workspaceId String @map("workspace_id")
+  name        String
+  color       String @default("#22c55e")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, name])
+  @@map("tags")
+}
+
+model TimeEntry {
+  id              String    @id @default(uuid())
+  taskId          String    @map("task_id")
+  startedAt       DateTime  @map("started_at")
+  endedAt         DateTime? @map("ended_at")
+  durationMinutes Int?      @map("duration_minutes")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("time_entries")
+}
+
+model DailyReview {
+  id               String   @id @default(uuid())
+  workspaceId      String   @map("workspace_id")
+  date             String
+  whatGotDone      String   @default("") @map("what_got_done")
+  whatDidnt        String   @default("") @map("what_didnt")
+  tomorrowPriority String   @default("") @map("tomorrow_priority")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, date])
+  @@map("daily_reviews")
+}
+
+model UserSettings {
+  id                    String @id @default("user-settings")
+  theme                 String @default("dark")
+  defaultView           String @default("list") @map("default_view")
+  blitzSoundscape       String @default("rain") @map("blitz_soundscape")
+  completionSound       Boolean @default(true) @map("completion_sound")
+  completionAnimation   Boolean @default(true) @map("completion_animation")
+  energyCurveMorning    String @default("deep") @map("energy_curve_morning")
+  energyCurveMidday     String @default("medium") @map("energy_curve_midday")
+  energyCurveAfternoon  String @default("shallow") @map("energy_curve_afternoon")
+  energyCurveEvening    String @default("shallow") @map("energy_curve_evening")
+  weekStartsOn          Int    @default(1) @map("week_starts_on")
+  defaultEstimateMinutes Int   @default(25) @map("default_estimate_minutes")
+  showCapacityWarning   Boolean @default(true) @map("show_capacity_warning")
+  dailyCapacityMinutes  Int    @default(480) @map("daily_capacity_minutes")
+
+  @@map("user_settings")
+}
